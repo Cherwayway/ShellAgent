@@ -160,7 +160,7 @@ jobs:
           api = HfApi()
 
           # Set repository and file paths
-          repo_id = "myshell-ai/ShellAgent"
+          repo_id = "chengwei139/ShellAgent"
           file_path = "ShellAgent_windows_portable.7z"
 
           # Upload the file to Hugging Face repository
