@@ -133,7 +133,7 @@ def check_repo_status():
             latest_tag_name = latest_tag.split('/')[-1]
             
             # get changelog
-            github_api_url = f"https://api.github.com/repos/myshell-ai/ShellAgent/releases/tags/{latest_tag_name}"
+            github_api_url = f"https://api.github.com/repos/Cherwayway/ShellAgent/releases/tags/{latest_tag_name}"
             response = requests.get(github_api_url)
             if response.status_code == 200:
                 release_data = response.json()
