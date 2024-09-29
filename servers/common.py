@@ -236,6 +236,13 @@ def check_repo_status():
     pygit2.option(pygit2.GIT_OPT_SET_OWNER_VALIDATION, 0)
     repo = pygit2.Repository('../ShellAgent')
 
+    try:
+        remote = repo.remotes["origin"]
+        remote.fetch()
+        print("Successfully fetched the latest information from the remote repository")
+    except Exception as e:
+        print(f"Error fetching information from the remote repository: {str(e)}")
+
     has_new_stable = False
     current_tag = None
     current_version = None
@@ -255,7 +262,7 @@ def check_repo_status():
                 break
     
     if not current_version:
-        current_version = current_commit_id[:7]  # 使用短 commit id
+        current_version = current_commit_id[:7]  # Use short commit id
 
     print(f'current_version: {current_version}')
 
@@ -267,7 +274,7 @@ def check_repo_status():
         if has_new_stable:
             latest_tag_name = latest_tag.split('/')[-1]
             
-            # get change log and publish time
+            # Get changelog and release date
             github_api_url = f"https://api.github.com/repos/Cherwayway/ShellAgent/releases/tags/{latest_tag_name}"
             response = requests.get(github_api_url)
             if response.status_code == 200:
