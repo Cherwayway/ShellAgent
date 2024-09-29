@@ -111,18 +111,26 @@ def check_repo_status():
 
     has_new_stable = False
     current_tag = None
+    current_version = None
+    target_release_date = None
     
     current_branch = repo.head.shorthand
     
     latest_commit = repo.revparse_single(current_branch)
+    current_commit_id = str(latest_commit.id)
     
     for reference in repo.references:
         if reference.startswith('refs/tags/v'):
             tag = repo.lookup_reference(reference)
             if tag.peel().id == latest_commit.id:
                 current_tag = reference
+                current_version = reference.split('/')[-1]
                 break
-    print(f'current_tag: {current_tag}')
+    
+    if not current_version:
+        current_version = current_commit_id[:7]  # 使用短 commit id
+
+    print(f'current_version: {current_version}')
 
     if current_tag:
         latest_tag = max((ref for ref in repo.references if ref.startswith('refs/tags/v')), key=lambda x: [int(i) for i in x.split('/')[-1][1:].split('.')])
@@ -132,20 +140,25 @@ def check_repo_status():
         if has_new_stable:
             latest_tag_name = latest_tag.split('/')[-1]
             
-            # get changelog
+            # get change log and publish time
             github_api_url = f"https://api.github.com/repos/Cherwayway/ShellAgent/releases/tags/{latest_tag_name}"
             response = requests.get(github_api_url)
             if response.status_code == 200:
                 release_data = response.json()
                 changelog = release_data.get('body', 'No changelog found')
+                target_release_date = release_data.get('published_at', 'Unknown')
             else:
                 changelog = f"Failed to get changelog. HTTP status code: {response.status_code}"
+                target_release_date = 'Unknown'
 
             print(f"Latest tag: {latest_tag_name}")
             print(f"Changelog:\n{changelog}")
+            print(f"Release date: {target_release_date}")
 
     response = {
-        "has_new_stable": has_new_stable
+        "has_new_stable": has_new_stable,
+        "current_version": current_version,
+        "target_release_date": target_release_date
     }
     if has_new_stable:
         response["latest_tag_name"] = latest_tag_name
