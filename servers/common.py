@@ -7,6 +7,7 @@ import sys
 import pygit2
 import subprocess
 import requests
+from datetime import datetime
 
 from flask import request, jsonify, abort, send_from_directory, send_file
 
@@ -14,13 +15,14 @@ from proconfig.widgets.base import WIDGETS
 from proconfig.widgets import load_custom_widgets
 from proconfig.utils.misc import is_valid_url, _make_temp_file
 
-from servers.base import app, APP_SAVE_ROOT, WORKFLOW_SAVE_ROOT, get_file_times
+from servers.base import app, APP_SAVE_ROOT, WORKFLOW_SAVE_ROOT, PROJECT_ROOT, get_file_times
 
 
 SAVE_ROOTS = {
     "app": APP_SAVE_ROOT,
     "workflow": WORKFLOW_SAVE_ROOT
 }
+LAST_CHECK_FILE = os.path.join(PROJECT_ROOT, 'last_check_time.json')
 
 @app.route(f'/api/upload', methods=['POST'])
 def upload():
@@ -233,6 +235,9 @@ def delete_workflow():
 
 @app.route('/api/check_repo_status')
 def check_repo_status():
+    # Record the current time at the beginning of the function
+    current_time = datetime.now().isoformat()
+    
     pygit2.option(pygit2.GIT_OPT_SET_OWNER_VALIDATION, 0)
     repo = pygit2.Repository('../ShellAgent')
 
@@ -297,6 +302,11 @@ def check_repo_status():
     if has_new_stable:
         response["latest_tag_name"] = latest_tag_name
         response["changelog"] = changelog
+    # Update the last check time before returning the response
+    os.makedirs(os.path.dirname(LAST_CHECK_FILE), exist_ok=True)
+    with open(LAST_CHECK_FILE, 'w') as f:
+        json.dump({"last_check_time": current_time}, f)
+
     return jsonify(response)
 
 def update_stable():
@@ -329,3 +339,12 @@ def restart():
         os._exit(42)  # Use exit code 42 to indicate restart signal
     threading.Thread(target=delayed_exit).start()
     return response
+
+@app.route('/api/last_check_time')
+def get_last_check_time():
+    if os.path.exists(LAST_CHECK_FILE):
+        with open(LAST_CHECK_FILE, 'r') as f:
+            data = json.load(f)
+        return jsonify(data)
+    else:
+        return jsonify({"last_check_time": None})
