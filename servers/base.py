@@ -3,10 +3,7 @@ from flask import Flask, render_template, jsonify
 import os
 import time
 import json
-import pygit2
-import subprocess
 import __main__
-import requests
 
 # define the app and some basic settings
 
@@ -103,98 +100,6 @@ def app_detail_page():
 @app.route('/workflow/detail')
 def workflow_detail_page():
     return render_template("workflow/detail.html")
-
-@app.route('/check_repo_status')
-def check_repo_status():
-    pygit2.option(pygit2.GIT_OPT_SET_OWNER_VALIDATION, 0)
-    repo = pygit2.Repository('../ShellAgent')
-
-    has_new_stable = False
-    current_tag = None
-    current_version = None
-    target_release_date = None
-    
-    current_branch = repo.head.shorthand
-    
-    latest_commit = repo.revparse_single(current_branch)
-    current_commit_id = str(latest_commit.id)
-    
-    for reference in repo.references:
-        if reference.startswith('refs/tags/v'):
-            tag = repo.lookup_reference(reference)
-            if tag.peel().id == latest_commit.id:
-                current_tag = reference
-                current_version = reference.split('/')[-1]
-                break
-    
-    if not current_version:
-        current_version = current_commit_id[:7]  # 使用短 commit id
-
-    print(f'current_version: {current_version}')
-
-    if current_tag:
-        latest_tag = max((ref for ref in repo.references if ref.startswith('refs/tags/v')), key=lambda x: [int(i) for i in x.split('/')[-1][1:].split('.')])
-        print(f"latest_tag: {latest_tag}")
-        has_new_stable = latest_tag != current_tag
-
-        if has_new_stable:
-            latest_tag_name = latest_tag.split('/')[-1]
-            
-            # get change log and publish time
-            github_api_url = f"https://api.github.com/repos/Cherwayway/ShellAgent/releases/tags/{latest_tag_name}"
-            response = requests.get(github_api_url)
-            if response.status_code == 200:
-                release_data = response.json()
-                changelog = release_data.get('body', 'No changelog found')
-                target_release_date = release_data.get('published_at', 'Unknown')
-            else:
-                changelog = f"Failed to get changelog. HTTP status code: {response.status_code}"
-                target_release_date = 'Unknown'
-
-            print(f"Latest tag: {latest_tag_name}")
-            print(f"Changelog:\n{changelog}")
-            print(f"Release date: {target_release_date}")
-
-    response = {
-        "has_new_stable": has_new_stable,
-        "current_version": current_version,
-        "target_release_date": target_release_date
-    }
-    if has_new_stable:
-        response["latest_tag_name"] = latest_tag_name
-        response["changelog"] = changelog
-    return jsonify(response)
-
-def update_stable():
-    try:
-        script_path = os.path.join('.ci', 'update_windows', 'update.py')
-        result = subprocess.run(['python', script_path, './', '--stable'], capture_output=True, text=True, check=True)
-        return result.stdout
-    except subprocess.CalledProcessError as e:
-        raise Exception(f"update failed: {e.stderr}")
-
-@app.route('/update/stable')
-def update_stable_route():
-    try:
-        result = update_stable()
-        return jsonify({"success": True, "message": result}), 200
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-@app.route('/restart')
-def restart():
-    print("Restart signal triggered")
-    # Return a response to the client
-    response = jsonify({"message": "Server is restarting"})
-    response.status_code = 200
-    # Use a thread to exit the program after a short delay
-    import threading
-    def delayed_exit():
-        import time
-        time.sleep(1)  # Wait for 1 second to ensure the response has been sent
-        os._exit(42)  # Use exit code 42 to indicate restart signal
-    threading.Thread(target=delayed_exit).start()
-    return response
 
 @app.route('/about')
 def about():
