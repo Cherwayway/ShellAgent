@@ -23,6 +23,7 @@ SAVE_ROOTS = {
     "workflow": WORKFLOW_SAVE_ROOT
 }
 LAST_CHECK_FILE = os.path.join(PROJECT_ROOT, 'last_check_time.json')
+AUTO_UPDATE_FILE = os.path.join(PROJECT_ROOT, 'data', 'auto_update_settings.json')
 
 @app.route(f'/api/upload', methods=['POST'])
 def upload():
@@ -348,3 +349,24 @@ def get_last_check_time():
         return jsonify(data)
     else:
         return jsonify({"last_check_time": None})
+
+@app.route('/api/auto_update', methods=['GET'])
+def get_auto_update_setting():
+    if os.path.exists(AUTO_UPDATE_FILE):
+        with open(AUTO_UPDATE_FILE, 'r') as f:
+            settings = json.load(f)
+        return jsonify(settings)
+    else:
+        return jsonify({"auto_update": False})
+
+@app.route('/api/auto_update', methods=['POST'])
+def set_auto_update_setting():
+    data = request.get_json()
+    if 'auto_update' not in data or not isinstance(data['auto_update'], bool):
+        return jsonify({"error": "Invalid input. 'auto_update' must be a boolean value."}), 400
+    
+    os.makedirs(os.path.dirname(AUTO_UPDATE_FILE), exist_ok=True)
+    with open(AUTO_UPDATE_FILE, 'w') as f:
+        json.dump({"auto_update": data['auto_update']}, f)
+    
+    return jsonify({"success": True, "message": "Auto update setting updated successfully."})
